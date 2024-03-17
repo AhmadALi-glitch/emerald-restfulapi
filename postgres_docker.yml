@@ -4,8 +4,8 @@ services:
     environment:
       PGDATA: /home/ahmad/postgres
       POSTGRES_PASSWORD: admin
-      POSTGRES_USER: admin
-    image: postgres
+      POSTGRES_USER: admin 
+    image: postgres:15.2
     ports:
       - "5432:5432"
     restart: unless-stopped
@@ -13,3 +13,4 @@ services:
       - postgres:/home/ahmad/postgres
 volumes:
   postgres:
+
