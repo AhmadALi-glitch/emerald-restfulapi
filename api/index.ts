@@ -2,7 +2,7 @@
 import express, { Express, Request, Response } from "express"
 import dotenv from "dotenv"
 import path from "path"
-import apiV1 from "./controllers/api_v1";
+import apiV1 from "./controllers/v1/index";
 
 dotenv.config()
 
