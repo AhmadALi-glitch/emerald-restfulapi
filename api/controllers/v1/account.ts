@@ -8,8 +8,8 @@ router.get("/", async (req, res) => {
     try {
         await prisma.$connect()
 
-        const result = await prisma.account.findMany()
-        res.send(result)
+        const resul = await prisma.account.findMany()
+        res.send(resul)
 
         await prisma.$disconnect()
     } catch(exp) {
