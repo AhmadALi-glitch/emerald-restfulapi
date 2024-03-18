@@ -4,12 +4,17 @@ import { prisma } from "../../../database/adapter";
 
 const router = express.Router();
 
-router.get("/", async (req, res) => {
+router.get("/:id", async (req, res) => {
     try {
-        await prisma.$connect()
+        prisma.$connect().then(() => {
+            console.log("Connected")
+        })
 
-        const resul = await prisma.account.findMany()
-        res.send(resul)
+        const result = await prisma.account.findFirst({where: {id: Number(req.params.id)}})
+        const cRes = await prisma.account.count()
+        console.log(result, cRes)
+
+        res.json(result)
 
         await prisma.$disconnect()
     } catch(exp) {
