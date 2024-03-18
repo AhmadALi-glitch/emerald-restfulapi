@@ -1,25 +1,14 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider        = "prisma-client-js"
   previewFeatures = ["driverAdapters"]
 }
-
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-
 model Account {
   id Int @id @default(autoincrement())
   name String
 }
-
-model Team {
-  id Int @id @default(autoincrement())
-  name String
-}
-
