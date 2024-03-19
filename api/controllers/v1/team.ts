@@ -5,6 +5,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
+import auth from "./middlware/auth";
 
 const router = express.Router();
 
@@ -25,8 +26,7 @@ let driver = multer({
 })
 
 
-router.put('/update/:id',
-    driver.single('avatar'),
+router.put('/update/:id', auth, driver.single('avatar'),
     async (req, res, next) => {
         prisma.$connect()
         let team = await prisma.team.findFirst({where: {id: +req.params.id}})
@@ -36,7 +36,7 @@ router.put('/update/:id',
             console.log("OLD AVATAR : ", team.avatar, path.join(__dirname, '../../../public/team-avatar') )
             // delete the old avatar if new avatar uploaded
             try {
-                if(team.avatar && req.file?.filename && team.avatar !== `/static/team-avatar/${req.file.filename}`) {
+                if(team.avatar && (!req.file?.filename || req.file?.filename && team.avatar !== `/static/team-avatar/${req.file.filename}`)) {
                     let fullPathOfCurrentAvatar = team.avatar.split('/')
                     let currentAvatarName = fullPathOfCurrentAvatar[fullPathOfCurrentAvatar.length - 1]
                     fs.unlink(path.join(__dirname, `../../../public/team-avatar/${currentAvatarName}`), (err) => {
@@ -60,7 +60,7 @@ router.put('/update/:id',
                 data: {
                     name: req.body.name,
                     about: req.body.about,
-                    avatar: req?.file?.filename ? `/static/team-avatar/${req?.file?.filename}` : undefined
+                    avatar: req?.file?.filename ? `/static/team-avatar/${req?.file?.filename}` : null
                 }
             })
             res.send(result)
@@ -71,7 +71,7 @@ router.put('/update/:id',
 
 
 
-router.get("/", async (req, res) => {
+router.get("/", auth, async (req, res) => {
     try {
         prisma.$connect()
         const result = await prisma.team.findMany()
@@ -83,7 +83,7 @@ router.get("/", async (req, res) => {
     }
 })
 
-router.get("/:id", async (req, res) => {
+router.get("/:id", auth, async (req, res) => {
 
     try {
         prisma.$connect()
@@ -97,8 +97,9 @@ router.get("/:id", async (req, res) => {
 
 })
 
-router.post('/create', driver.single('avatar'), async (req, res) => {
+router.post('/create', auth, driver.single('avatar'), async (req, res) => {
 
+    console.log("Current Session", req)
     // req.session
 
     try {
@@ -111,7 +112,8 @@ router.post('/create', driver.single('avatar'), async (req, res) => {
                 avatar: req.file?.filename ?  `/static/team-avatar/${ req.file?.filename }` : '',
                 create_date: new Date().toDateString(),
                 xp_points: 0,
-                creator_id: 1
+                //@ts-ignore
+                creator_id: req.session.user.id
             }
         })
 
@@ -129,22 +131,25 @@ router.post('/create', driver.single('avatar'), async (req, res) => {
 
 })
 
-router.delete('/delete/:id', async (req, res) => {
-
+router.delete('/delete/:id', auth, async (req, res) => {
 
     try {
         prisma.$connect()
-        let result = await prisma.account.findFirst({where: {id: +req.params.id}})
-        console.log(result)
-        if(!result) throw new Error("Account Not Found")
+        let team = await prisma.team.findFirst({where: {id: +req.params.id}})
+        console.log(team)
+        if(!team) throw new Error("Team Not Found")
         else {
-            let fullPathOfCurrentAvatar = result.avatar.split('/')
-            let currentAvatarName = fullPathOfCurrentAvatar[fullPathOfCurrentAvatar.length - 1]
-            fs.unlink(path.join(__dirname, `../../../public/account-avatar/${currentAvatarName}`), (err) => {
-                console.log(err)
-                if (err) throw new Error("when deleting old avatar")
-            })
-            await prisma.account.delete({where: {id: +req.params.id}}) 
+
+            if(team.avatar && (!req.file?.filename || req.file?.filename && team.avatar !== `/static/team-avatar/${req.file.filename}`)) {
+                let fullPathOfCurrentAvatar = team.avatar.split('/')
+                let currentAvatarName = fullPathOfCurrentAvatar[fullPathOfCurrentAvatar.length - 1]
+                fs.unlink(path.join(__dirname, `../../../public/team-avatar/${currentAvatarName}`), (err) => {
+                    console.log(err)
+                    if (err) throw new Error("when deleting old avatar")
+                })
+            }
+
+            await prisma.team.delete({where: {id: +req.params.id}}) 
             prisma.$disconnect()
             res.send("Deleted Succesfully").status(200)
         }

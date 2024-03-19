@@ -31,8 +31,7 @@ let driver = multer({
 })
 
 
-router.put('/update/:id',
-    driver.single('avatar'),
+router.put('/update/:id', auth, driver.single('avatar'),
     async (req, res, next) => {
         prisma.$connect()
         let account = await prisma.account.findFirst({where: {id: +req.params.id}})
@@ -42,7 +41,7 @@ router.put('/update/:id',
             console.log("OLD AVATAR : ", account.avatar, path.join(__dirname, '../../../public/account-avatar') )
             // delete the old avatar if new avatar uploaded
             try {
-                if(account.avatar && req.file?.filename && account.avatar !== `/static/account-avatar/${req.file.filename}`) {
+                if(account.avatar && (!req.file?.filename || req.file?.filename && account.avatar !== `/static/account-avatar/${req.file.filename}`)) {
                     let fullPathOfCurrentAvatar = account.avatar.split('/')
                     let currentAvatarName = fullPathOfCurrentAvatar[fullPathOfCurrentAvatar.length - 1]
                     fs.unlink(path.join(__dirname, `../../../public/account-avatar/${currentAvatarName}`), (err) => {
@@ -66,7 +65,7 @@ router.put('/update/:id',
                     name: req.body.name,
                     about: req.body.about,
                     professions: req.body.professions,
-                    avatar: req?.file?.filename ? `/static/account-avatar/${req?.file?.filename}` : undefined
+                    avatar: req?.file?.filename ? `/static/account-avatar/${req?.file?.filename}` :  null
                 }
             })
             res.send(result)
@@ -74,7 +73,6 @@ router.put('/update/:id',
             res.send(exp)
         }
     })
-
 
 
 router.get("/", auth, async (req, res) => {
@@ -109,7 +107,7 @@ router.post('/create', driver.single('avatar'), async (req, res) => {
     try {
 
         prisma.$connect();
-        let result = await prisma.account.create({
+        let account = await prisma.account.create({
             data: {
                 name: req.body.name,
                 about: req.body.about,
@@ -122,11 +120,11 @@ router.post('/create', driver.single('avatar'), async (req, res) => {
             }
         })
 
-        if(!result) throw new Error("account can not be saved")
+        if(!account) throw new Error("account can not be saved")
 
         //@ts-ignore
         req.session["user"] = {email: account.email, id: account.id}
-        res.send(result).status(200)
+        res.send(account).status(200)
 
     } catch(exp: any) {
         if(exp instanceof PrismaClientKnownRequestError) {
@@ -165,7 +163,7 @@ router.post('/login', async (req, res) => {
 })
 
 
-router.post("/checkpass", (req, res) => {
+router.post("/checkpass", auth, (req, res) => {
     prisma.$connect();
     prisma.account.findFirst({where: {email: req.body.email}}).then((data) => {
         if(!data) {
@@ -183,7 +181,7 @@ router.post("/checkpass", (req, res) => {
 })
 
 
-router.post("/forgetpass", (req, res) => {
+router.post("/forgetpass", auth, (req, res) => {
     prisma.$connect();
     prisma.account.findFirst({where: {email: req.body.email}}).then((data) => {
         if(!data) {
@@ -232,16 +230,18 @@ router.delete('/delete/:id', auth, async (req, res) => {
 
     try {
         prisma.$connect()
-        let result = await prisma.account.findFirst({where: {id: +req.params.id}})
-        console.log(result)
-        if(!result) throw new Error("Account Not Found")
+        let account = await prisma.account.findFirst({where: {id: +req.params.id}})
+        console.log(account)
+        if(!account) throw new Error("Account Not Found")
         else {
-            let fullPathOfCurrentAvatar = result.avatar.split('/')
-            let currentAvatarName = fullPathOfCurrentAvatar[fullPathOfCurrentAvatar.length - 1]
-            fs.unlink(path.join(__dirname, `../../../public/account-avatar/${currentAvatarName}`), (err) => {
-                console.log(err)
-                if (err) throw new Error("when deleting old avatar")
-            })
+                if(account.avatar && (!req.file?.filename || req.file?.filename && account.avatar !== `/static/account-avatar/${req.file.filename}`)) {
+                    let fullPathOfCurrentAvatar = account.avatar.split('/')
+                    let currentAvatarName = fullPathOfCurrentAvatar[fullPathOfCurrentAvatar.length - 1]
+                    fs.unlink(path.join(__dirname, `../../../public/account-avatar/${currentAvatarName}`), (err) => {
+                        console.log(err)
+                        if (err) throw new Error("when deleting old avatar")
+                    })
+                }
             await prisma.account.delete({where: {id: +req.params.id}}) 
             prisma.$disconnect()
             res.send("Deleted Succesfully").status(200)
