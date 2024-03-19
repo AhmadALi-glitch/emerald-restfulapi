@@ -89,7 +89,7 @@ router.get("/:id", async (req, res) => {
 
     try {
         prisma.$connect()
-        const result = await prisma.account.findFirst({where: {id: Number(req.params.id)}})
+        const result = await prisma.team.findFirst({where: {id: Number(req.params.id)}})
         res.json(result)
         await prisma.$disconnect()
     } catch(exp) {
@@ -101,30 +101,29 @@ router.get("/:id", async (req, res) => {
 
 router.post('/create', driver.single('avatar'), async (req, res) => {
 
+    // req.session
 
     try {
 
         prisma.$connect();
-        let result = await prisma.account.create({
+        let result = await prisma.team.create({
             data: {
                 name: req.body.name,
                 about: req.body.about,
-                avatar: req.file?.filename ?  `/static/account-avatar/${ req.file?.filename }` : '',
-                email: req.body.email,
-                hash: generateHash(req.body.password),
-                join_date: new Date().toDateString(),
+                avatar: req.file?.filename ?  `/static/team-avatar/${ req.file?.filename }` : '',
+                create_date: new Date().toDateString(),
                 xp_points: 0,
-                professions: req.body.professions
+                creator_id: 
             }
         })
 
-        if(!result) throw new Error("account can not be saved")
+        if(!result) throw new Error("team can not be saved")
 
         res.send(result).status(200)
 
     } catch(exp: any) {
         if(exp instanceof PrismaClientKnownRequestError) {
-            if(exp.code == "P2002") res.send("Email Should Be Unique").status(400)
+            if(exp.code == "P2002") res.send("Name Should Be Unique").status(400)
         } else {
             res.send(exp.message)
         }

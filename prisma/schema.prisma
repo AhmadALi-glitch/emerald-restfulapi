@@ -29,6 +29,7 @@ model Team {
   name String @unique
   xp_points Int
   avatar String
+  create_date String
   about String
   accounts Account[]
   creator_id Int
