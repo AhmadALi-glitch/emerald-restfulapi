@@ -11,4 +11,43 @@ datasource db {
 model Account {
   id Int @id @default(autoincrement())
   name String
+  email String @unique
+  hash String
+  avatar String
+  xp_points Int
+  professions Json
+  join_date String
+  about String
+  team_id Int?
+  team Team? @relation(onDelete: Cascade, fields: [team_id], references: [id])
+  posts Post[]
+  comments Comment[]
 }
+
+model Team {
+  id Int @id @default(autoincrement())
+  name String @unique
+  xp_points Int
+  avatar String
+  about String
+  accounts Account[]
+  creator_id Int
+}
+
+model Post {
+  id Int @id @default(autoincrement())
+  title String
+  paragraph String
+  author_id Int?
+  author Account? @relation(fields: [author_id], references: [id])
+}
+
+
+model Comment {
+  id Int @id @default(autoincrement())
+  paragraph String
+  author_id Int?
+  author Account? @relation(fields: [author_id], references: [id])
+}
+
+
