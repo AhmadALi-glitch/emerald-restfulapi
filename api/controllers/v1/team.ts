@@ -4,11 +4,9 @@ import { prisma } from "../../../database/adapter"
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { generateHash, isPasswordValid } from "../../utils/hash";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 
 const router = express.Router();
-
 
 let driver = multer({
     storage: multer.diskStorage({
@@ -113,7 +111,7 @@ router.post('/create', driver.single('avatar'), async (req, res) => {
                 avatar: req.file?.filename ?  `/static/team-avatar/${ req.file?.filename }` : '',
                 create_date: new Date().toDateString(),
                 xp_points: 0,
-                creator_id: 
+                creator_id: 1
             }
         })
 
@@ -130,92 +128,6 @@ router.post('/create', driver.single('avatar'), async (req, res) => {
     }
 
 })
-
-
-router.post('/login', async (req, res) => {
-
-    prisma.$connect();
-    try {
-        let account = await prisma.account.findFirst({
-            where: {
-                email: req.body.email
-            }
-        })
-        if(!account) throw new Error("Account Not Found")
-        else {
-            if(isPasswordValid(req.body.password, account.hash)) {
-                res.send(account)
-            } else { throw new Error("password is wrong") }
-        }
-    } catch(exp: any) {
-        console.log(exp)
-        res.send(exp.message)
-    }
-
-})
-
-
-router.post("/checkpass", (req, res) => {
-    prisma.$connect();
-    prisma.account.findFirst({where: {email: req.body.email}}).then((data) => {
-        if(!data) {
-            prisma.$disconnect();
-            res.send('account not found').status(400)
-        } else {
-            prisma.$disconnect();
-            console.log(isPasswordValid(req.body.password, data.hash))
-            res.send(isPasswordValid(req.body.password, data.hash))
-        }
-    }).catch((err) => {
-        prisma.$disconnect();
-        res.json(err).status(500)
-    })
-})
-
-
-router.post("/forgetpass", (req, res) => {
-    prisma.$connect();
-    prisma.account.findFirst({where: {email: req.body.email}}).then((data) => {
-        if(!data) {
-            prisma.$disconnect();
-            res.send('account not found').status(400)
-        } else {
-            prisma.$disconnect();
-            console.log(isPasswordValid(req.body.password, data.hash))
-            res.send(isPasswordValid(req.body.password, data.hash))
-        }
-    }).catch((err) => {
-        prisma.$disconnect();
-        res.json(err).status(500)
-    })
-})
-
-router.put('/update-avatar/:id',
-    async (req, res, next) => {
-        prisma.$connect()
-        let account = await prisma.account.findFirst({where: {id: +req.params.id}})
-        if(!account) res.send("Account Not Found").status(400); prisma.$disconnect()
-        // store email for avatar file name
-        req.body.email = account?.email
-    },
-    driver.single('avatar'),
-    async (req, res) => {
-        try {
-            prisma.$connect();
-            const result = await prisma.account.update({
-                where: {id: +req.params.id},
-                data: {
-                    name: req.body.name,
-                    about: req.body.about,
-                    professions: req.body.professions
-                }
-            })
-            res.send(result)
-        } catch(exp) {
-            res.send(exp)
-        }
-    })
-
 
 router.delete('/delete/:id', async (req, res) => {
 

@@ -6,6 +6,7 @@ import path from "path";
 import multer from "multer";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 import fs from "fs"
+import auth from "./middlware/auth";
 
 // NEEDS REFACTORING
 // const relativePublicPath = path.join(__dirname, '../../../public')
@@ -57,7 +58,6 @@ router.put('/update/:id',
         }
     },
     async (req, res) => {
-
         try {
             prisma.$connect();
             const result = await prisma.account.update({
@@ -77,7 +77,7 @@ router.put('/update/:id',
 
 
 
-router.get("/", async (req, res) => {
+router.get("/", auth, async (req, res) => {
     try {
         prisma.$connect()
         const result = await prisma.account.findMany()
@@ -89,7 +89,7 @@ router.get("/", async (req, res) => {
     }
 })
 
-router.get("/:id", async (req, res) => {
+router.get("/:id", auth, async (req, res) => {
 
     try {
         prisma.$connect()
@@ -124,6 +124,8 @@ router.post('/create', driver.single('avatar'), async (req, res) => {
 
         if(!result) throw new Error("account can not be saved")
 
+        //@ts-ignore
+        req.session["user"] = {email: account.email, id: account.id}
         res.send(result).status(200)
 
     } catch(exp: any) {
@@ -149,7 +151,10 @@ router.post('/login', async (req, res) => {
         if(!account) throw new Error("Account Not Found")
         else {
             if(isPasswordValid(req.body.password, account.hash)) {
+                //@ts-ignore
+                req.session["user"] = {email: account.email, id: account.id}
                 res.send(account)
+
             } else { throw new Error("password is wrong") }
         }
     } catch(exp: any) {
@@ -195,7 +200,7 @@ router.post("/forgetpass", (req, res) => {
     })
 })
 
-router.put('/update-avatar/:id',
+router.put('/update-avatar/:id', auth,
     async (req, res, next) => {
         prisma.$connect()
         let account = await prisma.account.findFirst({where: {id: +req.params.id}})
@@ -222,7 +227,7 @@ router.put('/update-avatar/:id',
     })
 
 
-router.delete('/delete/:id', async (req, res) => {
+router.delete('/delete/:id', auth, async (req, res) => {
 
 
     try {

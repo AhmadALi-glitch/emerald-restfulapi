@@ -3,6 +3,7 @@ import express, { Express, Request, Response } from "express"
 import dotenv from "dotenv"
 import path from "path"
 import apiV1 from "./controllers/v1/index";
+import session from "express-session"
 
 dotenv.config()
 
@@ -11,6 +12,16 @@ const port = process.env.PORT || 3000;
 
 
 app.use(express.json())
+
+app.use(session({
+  secret: process.env.COOKIE_SECRET || "123123123",
+  name: 'session',
+  cookie: { maxAge: 60 * 60 * 24, signed: true },
+  resave: false,
+  saveUninitialized: false
+}))
+
+
 app.use("/api/v1", apiV1)
 
 
