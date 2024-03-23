@@ -16,12 +16,69 @@ model Account {
   avatar String?
   xp_points Int
   professions Json
-  join_date String
+  join_date_utc String 
   about String
   team_id Int?
   team Team? @relation(onDelete: Cascade, fields: [team_id], references: [id])
   posts Post[]
   comments Comment[]
+  checkpoints accountCheckpoints[]
+  organizing organizersEvents[]
+  achievments accountsAchievments[]
+  teamJoinRequests teamJoinRequests? @relation("applier")
+  recivedTeamJoinRequests teamJoinRequests[] @relation("receiver")
+  reciverEventJoinRequests eventJoinRequests[]
+}
+
+model teamJoinRequests {
+  team_creator_id Int?
+  applier_id Int? @unique
+  teamCreator Account? @relation(name: "receiver",fields: [team_creator_id], references: [id])
+  applier     Account? @relation(name: "applier", fields: [applier_id], references: [id])
+  appplying_date_utc String 
+
+  id Int @id @default(autoincrement())
+}
+
+
+model eventJoinRequests {
+  event_organizer_id  Int?
+  applier_id          Int?      @unique
+  eventOrganizer      Account?  @relation(fields: [event_organizer_id], references: [id])
+  applier             Team?     @relation(fields: [applier_id], references: [id])
+  appplying_date_utc String
+
+  id Int @id @default(autoincrement())
+}
+
+
+model accountsAchievments {
+  account_id Int 
+  account Account @relation(fields: [account_id], references: [id])
+  acheivment_id Int
+  achivment Achievment @relation(fields: [acheivment_id], references: [id])
+  @@id([account_id, acheivment_id])
+}
+
+model accountCheckpoints {
+  executor_id Int  
+  executor Account @relation(fields: [executor_id], references: [id])
+  checkpoint_id Int
+  checkpoint Checkpoint @relation(fields: [checkpoint_id], references: [id])
+  @@id([executor_id, checkpoint_id])
+}
+
+model Checkpoint {
+  id Int @id @default(autoincrement())
+  event Event @relation(references: [id], fields: [event_id])
+  event_id Int
+  team Team @relation(references: [id], fields: [team_id])
+  team_id Int
+  checked Boolean
+  title String
+  description String
+  create_date_utc String 
+  executors accountCheckpoints[]
 }
 
 model Team {
@@ -29,26 +86,87 @@ model Team {
   name String @unique
   xp_points Int
   avatar String?
-  create_date String
+  create_date_utc String
   about String
   accounts Account[]
   creator_id Int
+  checkpoints Checkpoint[]
+  events teamsEvents[]
+  achievments teamsAchievments[]
+  eventJoinRequest eventJoinRequests?
 }
+
+model teamsAchievments {
+  team_id Int
+  team Team @relation(fields: [team_id], references: [id])
+  achivment_id Int
+  achivment Achievment @relation(fields: [achivment_id], references: [id])
+  @@id([team_id, achivment_id])
+}
+
+
 
 model Post {
   id Int @id @default(autoincrement())
   title String
   paragraph String
+  create_date_utc String 
   author_id Int?
   author Account? @relation(fields: [author_id], references: [id])
+  comments Comment[]
 }
 
 
 model Comment {
   id Int @id @default(autoincrement())
   paragraph String
-  author_id Int?
-  author Account? @relation(fields: [author_id], references: [id])
+  create_date_utc String
+  post_id Int
+  author_id Int
+  post Post @relation(fields: [post_id], references: [id])
+  author Account @relation(fields: [author_id], references: [id])
 }
 
+model teamsEvents {
+  team_id Int
+  team Team @relation(fields: [team_id], references: [id])
+  event_id Int
+  event Event @relation(fields: [event_id], references: [id])
+  join_date_utc String 
+  @@id([team_id, event_id])
+}
 
+model organizersEvents {
+  organizer_id Int
+  organizer Account @relation(fields: [organizer_id], references: [id])
+  event_id Int
+  event Event @relation(fields: [event_id], references: [id])
+  @@id([organizer_id, event_id])
+}
+
+model Event {
+  id Int @id @default(autoincrement())
+  checkpoints Checkpoint[]
+  participants teamsEvents[]
+  organizers organizersEvents[]
+  name String
+  start_date_utc String
+  end_date_utc String
+  description String
+  style String
+  field String
+  finished Boolean
+  achievment Achievment? @relation(fields: [achievment_id], references: [id])
+  achievment_id Int? @unique
+}
+
+model Achievment {
+  id Int @id @default(autoincrement())
+  name String
+  desciption String
+  field String
+  work String
+  event Event?
+  executors accountsAchievments[]
+  teams teamsAchievments[]
+}

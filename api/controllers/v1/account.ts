@@ -31,6 +31,21 @@ let driver = multer({
 })
 
 
+router.get("/", async (req, res) => {
+    console.log('asd')
+    try {
+        await prisma.$connect().catch((err) => { console.log(err) ;throw new Error("Can not Connect with the database") } )
+        const result = await prisma.account.findMany()
+        if(!result) throw new Error("can not get all accounts")
+        res.json(result)
+        await prisma.$disconnect()
+    } catch(exp) {
+        await prisma.$disconnect()
+        res.json(exp).status(500)
+    }
+})
+
+
 router.put('/update/:id', auth, driver.single('avatar'),
     async (req, res, next) => {
         prisma.$connect()
@@ -75,18 +90,6 @@ router.put('/update/:id', auth, driver.single('avatar'),
     })
 
 
-router.get("/", auth, async (req, res) => {
-    try {
-        prisma.$connect()
-        const result = await prisma.account.findMany()
-        res.json(result)
-        await prisma.$disconnect()
-    } catch(exp) {
-        await prisma.$disconnect()
-        res.send(exp).status(500)
-    }
-})
-
 router.get("/:id", auth, async (req, res) => {
 
     try {
@@ -103,7 +106,6 @@ router.get("/:id", auth, async (req, res) => {
 
 router.post('/create', driver.single('avatar'), async (req, res) => {
 
-
     try {
 
         prisma.$connect();
@@ -114,7 +116,7 @@ router.post('/create', driver.single('avatar'), async (req, res) => {
                 avatar: req.file?.filename ?  `/static/account-avatar/${ req.file?.filename }` : '',
                 email: req.body.email,
                 hash: generateHash(req.body.password),
-                join_date: new Date().toDateString(),
+                join_date_utc: "234",
                 xp_points: 0,
                 professions: req.body.professions
             }
@@ -137,8 +139,9 @@ router.post('/create', driver.single('avatar'), async (req, res) => {
 })
 
 
-router.post('/login', async (req, res) => {
 
+router.post('/login',driver.none(), async (req, res) => {
+    console.log(req.body)
     prisma.$connect();
     try {
         let account = await prisma.account.findFirst({
@@ -150,14 +153,22 @@ router.post('/login', async (req, res) => {
         else {
             if(isPasswordValid(req.body.password, account.hash)) {
                 //@ts-ignore
+                BigInt.prototype['toJSON'] = function () { 
+                    return this.toString()
+                }
+                //@ts-ignore
+                console.log(BigInt['toJSON'])
+                //@ts-ignore
                 req.session["user"] = {email: account.email, id: account.id}
-                res.send(account)
+                //@ts-ignore
+                console.log(account)
+                res.json(account)
 
             } else { throw new Error("password is wrong") }
         }
     } catch(exp: any) {
         console.log(exp)
-        res.send(exp.message)
+        res.json(exp.message)
     }
 
 })

@@ -110,7 +110,7 @@ router.post('/create', auth, driver.single('avatar'), async (req, res) => {
                 name: req.body.name,
                 about: req.body.about,
                 avatar: req.file?.filename ?  `/static/team-avatar/${ req.file?.filename }` : '',
-                create_date: new Date().toDateString(),
+                create_date_utc: "1231",
                 xp_points: 0,
                 //@ts-ignore
                 creator_id: req.session.user.id
