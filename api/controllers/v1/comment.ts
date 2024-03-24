@@ -2,7 +2,7 @@
 import express from "express"
 import auth from "./middlware/auth";
 import { prisma } from "../../../database/adapter";
-// import { getTimezoneDateUtcInMs } from "../../../timing/date";
+import { getCurrentTimezoneDateInUtc } from "../../../timing/date";
 import multer from "multer";
 
 const router = express.Router();
@@ -124,7 +124,7 @@ router.post("/create", multer().none(), auth, async (req, res) => {
             data: {
                 author_id: +accountId,
                 paragraph: req.body.paragraph,
-                create_date_utc: "23",
+                create_date_utc: `${getCurrentTimezoneDateInUtc(req.body.timezone)}`,
                 post_id: +req.body.postId
             }
         })

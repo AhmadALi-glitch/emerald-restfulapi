@@ -116,7 +116,7 @@ router.post('/create', driver.single('avatar'), async (req, res) => {
                 avatar: req.file?.filename ?  `/static/account-avatar/${ req.file?.filename }` : '',
                 email: req.body.email,
                 hash: generateHash(req.body.password),
-                join_date_utc: "234",
+                join_date_utc: `${ new Date().valueOf() }`,
                 xp_points: 0,
                 professions: req.body.professions
             }
@@ -137,7 +137,6 @@ router.post('/create', driver.single('avatar'), async (req, res) => {
     }
 
 })
-
 
 
 router.post('/login',driver.none(), async (req, res) => {

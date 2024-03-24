@@ -70,7 +70,6 @@ router.put('/update/:id', auth, driver.single('avatar'),
     })
 
 
-
 router.get("/", auth, async (req, res) => {
     try {
         prisma.$connect()

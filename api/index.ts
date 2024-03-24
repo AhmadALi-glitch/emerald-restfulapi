@@ -2,8 +2,9 @@
 import express, { Express, Request, Response } from "express"
 import dotenv from "dotenv"
 import path from "path"
-import apiV1 from "./controllers/v1/index";
+import apiV1 from "./controllers/v1/index"
 import session from "express-session"
+import cors from "cors"
 
 dotenv.config()
 
@@ -12,6 +13,10 @@ const port = process.env.PORT || 3000;
 
 
 app.use(express.json())
+app.use(cors({
+  origin: "http://localhost:5173"
+}))
+
 
 app.use(session({
   secret: process.env.COOKIE_SECRET || "123123123",
