@@ -6,6 +6,7 @@ import path from "path";
 import fs from "fs";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 import auth from "./middlware/auth";
+import { getCurrentTimezoneDateInUtc } from "../../../timing/date";
 
 const router = express.Router();
 
@@ -70,7 +71,7 @@ router.put('/update/:id', auth, driver.single('avatar'),
     })
 
 
-router.get("/", auth, async (req, res) => {
+router.get("/", async (req, res) => {
     try {
         prisma.$connect()
         const result = await prisma.team.findMany()
@@ -82,12 +83,54 @@ router.get("/", auth, async (req, res) => {
     }
 })
 
-router.get("/:id", auth, async (req, res) => {
+router.get("/:id/:timezone", auth, async (req, res) => {
 
     try {
         prisma.$connect()
-        const result = await prisma.team.findFirst({where: {id: Number(req.params.id)}})
-        res.json(result)
+        console.log(req.params)
+        const result = await prisma.team.findFirst({select: {
+                about: true,
+                accounts: true,
+                avatar: true,
+                achievments: true,
+                checkpoints: true,
+                create_date_utc: true,
+                creator_id: true,
+                eventJoinRequest: true,
+                events: {
+                    select: {
+                        event: {
+                            select: {
+                                _count: true,
+                                id: true
+                            }
+                        }
+                    }
+                },
+                name: true,
+                xp_points: true,
+                id: true
+            },
+            where: {id: +req.params.id}
+        })
+
+        let enrolledIn =  await prisma.event.findMany({where: {
+            participants: {
+                every: {
+                    //@ts-ignore
+                    team_id: +result.id
+                }
+            },
+            start_date_utc: {
+                lte: `${getCurrentTimezoneDateInUtc(req.params.timezone.replace('-', '/'))}`
+            },
+            end_date_utc: {
+                gte: `${getCurrentTimezoneDateInUtc(req.params.timezone.replace('-', '/'))}`
+            }
+        }})
+
+        res.json({ ...result, enrolledIn })
+
         await prisma.$disconnect()
     } catch(exp) {
         await prisma.$disconnect()

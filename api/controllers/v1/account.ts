@@ -125,7 +125,8 @@ router.get("/get-my-info/:timezone", auth, async (req, res) => {
             team_id: true,
             team: true,
             teamJoinRequests: true,
-            xp_points: true
+            xp_points: true,
+            id: true
         }})
 
         let organizingNow = result?.organizing.filter((o) => {
@@ -151,7 +152,8 @@ router.get("/get-my-info/:timezone", auth, async (req, res) => {
                 gte: `${getCurrentTimezoneDateInUtc(req.params.timezone.replace('-', '/'))}`
             }
         }})
-        res.json({ ...result, organizingNow, scheduling, enrolledIn  })
+
+        res.json({ ...result, organizingNow, scheduling, enrolledIn, isTeamLeader: result?.team?.creator_id == result?.id  })
 
         await prisma.$disconnect()
 
@@ -243,7 +245,8 @@ router.post('/login/:timezone',driver.none(), async (req, res) => {
                     team_id: true,
                     team: true,
                     teamJoinRequests: true,
-                    xp_points: true
+                    xp_points: true,
+                    id: true
                 }})
 
                 let organizingNow = result?.organizing.filter((o) => {
@@ -270,7 +273,7 @@ router.post('/login/:timezone',driver.none(), async (req, res) => {
                     }
                 }})
 
-                res.json({ ...result, organizingNow, scheduling, enrolledIn  })
+                res.json({ ...result, organizingNow, scheduling, enrolledIn, isTeamLeader: result?.team?.creator_id == result?.id })
 
             } else { throw new Error("password is wrong") }
         }

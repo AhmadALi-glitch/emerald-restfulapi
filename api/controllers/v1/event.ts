@@ -8,83 +8,6 @@ import { Prisma } from "@prisma/client";
 import { DefaultArgs } from "@prisma/client/runtime/library";
 
 const router = express()
-
-router.get('/:id', auth, async (req, res) => {
-
-
-    //@ts-ignore
-    let accountId = req.session.user.id
-
-    try {
-        prisma.$connect()
-
-        let events = await prisma.event.findFirst({where: {id: +req.params.id},
-            select: {
-                name: true,
-                achievment: true,
-                checkpoints: true,
-                participants: {
-                    select: {
-                        team: {
-                            select: {
-                                accounts: { select: {id: true, name: true} },
-                                avatar: true,
-                                name: true,
-                                creator_id: true,
-                                xp_points: true,
-                                id: true,
-                            }
-                        },
-                        join_date_utc: true,
-                    }
-                },
-                achievment_id: true,
-                end_date_utc: true,
-                start_date_utc: true,
-                description: true,
-                field: true,
-                finished: true,
-                organizers: {
-                    select: {
-                        organizer: true
-                    }
-                },
-                style: true,
-                id: true
-            }
-        })
-
-        let role;
-
-        events?.participants.every((p) => {
-            console.log(events?.participants, accountId)
-            if(accountId == p.team.creator_id) {
-                role = 'teamLeader'
-                return false
-            } else {
-                role = 'default'
-            }
-        })
-
-        events?.organizers.forEach((o) => {
-            if(accountId == o.organizer.id) {
-                role = 'organizer'
-            }
-        })
-
-        if(!events) throw new Error("can not fetch running events")
-
-        res.json({ events, role })
-
-        prisma.$disconnect()
-
-    } catch(exc) {
-        prisma.$disconnect()
-        res.json(exc)
-    }
-
-})
-
 router.post('/get-running-events', auth, multer().none(), async (req, res) => {
 
     try {
@@ -299,6 +222,260 @@ router.post('/finish', auth, multer().none(), async(req, res) => {
    }
 
 })
+
+
+router.get('/join-request/:teamId/:eventId', auth, multer().none(), async(req, res) => {
+
+    try {
+        prisma.$connect()
+
+        let event = await prisma.event.findFirst({where: { id: +req.params.eventId }, select: { organizers: true, id: true } })
+
+        let request = await prisma.eventJoinRequests.create({
+            data: {
+                appplying_date_utc: `${ new Date().valueOf() }`,
+                applier_id: +req.params.teamId,
+                //@ts-ignore
+                event_organizer_id: +event?.organizers[0].organizer_id,
+                //@ts-ignore
+                event_id: event?.id
+            },
+            select: {
+                applier: true,
+                eventOrganizer: true,
+                id: true,
+                appplying_date_utc: true
+            }
+        })
+
+        console.log(request, event)
+
+        res.json(request)
+
+        prisma.$disconnect()
+    } catch(exc) {
+        console.log(exc)
+        res.json(exc)
+        prisma.$disconnect()
+    }
+
+})
+
+
+router.get('/is-member/:teamId/:eventId', auth, multer().none(), async(req, res) => {
+
+    try {
+        prisma.$connect()
+
+        let request = await prisma.event.findFirst({
+            where: {
+                id: +req.params.eventId,
+                participants: {
+                    some: {
+                        team_id: +req.params.teamId
+                    }
+                }
+            }
+        })
+
+        let isJROnHold = await prisma.eventJoinRequests.findFirst({
+            where: {
+                applier_id: +req.params.teamId,
+                event_id: +req.params.eventId
+            }
+        })
+
+        console.log("JR", isJROnHold)
+
+        res.json(isJROnHold?.id ? "onHold" : request?.id ? true : false)
+
+        prisma.$disconnect()
+    } catch(exc) {
+        res.json(exc)
+        prisma.$disconnect()
+    }
+
+})
+
+router.get('/is-joining-request-hold/:teamId/:eventId', auth, multer().none(), async(req, res) => {
+
+    try {
+        prisma.$connect()
+        let isJROnHold = await prisma.eventJoinRequests.findFirst({
+            where: {
+                applier_id: +req.params.teamId,
+                event_id: +req.params.eventId
+            }
+        })
+       
+        res.json(isJROnHold?.id ? "onHold" : "approved")
+        
+        prisma.$disconnect()
+    } catch(exc) {
+        res.json(exc)
+        prisma.$disconnect()
+    }
+})
+
+
+router.get('/received-join-requests', auth, async(req, res) => {
+
+    console.log('jrssss')
+
+    //@ts-ignore
+    let accountId = req.session.user.id;
+
+    try {
+        prisma.$connect()
+        let jrs = await prisma.eventJoinRequests.findMany({
+            where: {
+                event_organizer_id: +accountId
+            },
+            select: {
+                applier: true,
+                eventOrganizer: true,
+                id: true,
+                appplying_date_utc: true,
+                event_id: true
+            }
+        })
+
+        let eventsRequestsOnNames: {}[] = []
+
+        for(let je of jrs) {
+            let ev = await prisma.event.findFirst({
+                where: {
+                    id: +je.id
+                }
+            })
+            eventsRequestsOnNames.push({ message : `طلب انضمام من فريق  "${je.applier?.name}" على فعالية ${ev?.name}`, type: 'event-join-request', details: je })
+        }
+       
+        console.log(jrs)
+        console.log(eventsRequestsOnNames)
+        res.json(eventsRequestsOnNames)
+        
+        prisma.$disconnect()
+    } catch(exc) {
+        console.log(exc)
+        res.json(exc)
+        prisma.$disconnect()
+    }
+
+})
+
+
+// router.post('/resolve-join-request', auth, async(req, res) => {
+
+//     console.log('jrssss')
+
+//     //@ts-ignore
+//     let accountId = req.session.user.id;
+
+//     try {
+//         prisma.$connect()
+
+//         let deleteJoinRequest = await prisma.event.
+
+//         if(req.body.answre == 'accept') {
+
+
+
+//         }
+
+        
+//         prisma.$disconnect()
+//     } catch(exc) {
+//         console.log(exc)
+//         res.json(exc)
+//         prisma.$disconnect()
+//     }
+
+// })
+
+
+
+
+
+
+
+
+router.get('/:id', auth, async (req, res) => {
+
+
+    //@ts-ignore
+    let accountId = req.session.user.id
+
+    try {
+        prisma.$connect()
+
+        let events = await prisma.event.findFirst({where: {id: +req.params.id},
+            select: {
+                name: true,
+                achievment: true,
+                checkpoints: true,
+                participants: {
+                    select: {
+                        team: {
+                            select: {
+                                accounts: { select: {id: true, name: true} },
+                                avatar: true,
+                                name: true,
+                                creator_id: true,
+                                xp_points: true,
+                                id: true,
+                            }
+                        },
+                        join_date_utc: true,
+                    }
+                },
+                achievment_id: true,
+                end_date_utc: true,
+                start_date_utc: true,
+                description: true,
+                field: true,
+                finished: true,
+                organizers: {
+                    select: {
+                        organizer: true
+                    }
+                },
+                style: true,
+                id: true
+            }
+        })
+
+        let role;
+
+        events?.participants.every((p) => {
+            console.log(events?.participants, accountId)
+            if(accountId == p.team.creator_id) {
+                role = 'teamLeader'
+                return false
+            } else {
+                role = 'default'
+            }
+        })
+
+        events?.organizers.forEach((o) => {
+            if(accountId == o.organizer.id) {
+                role = 'organizer'
+            }
+        })
+
+        if(!events) throw new Error("can not fetch running events")
+
+        res.json({ events, role })
+
+        prisma.$disconnect()
+
+    } catch(exc) {
+        prisma.$disconnect()
+        res.json(exc)
+    }
+
+})
+
 
 
 export default router;

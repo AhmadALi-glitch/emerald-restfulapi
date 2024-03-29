@@ -29,6 +29,7 @@ CREATE TABLE "eventJoinRequests" (
     "event_organizer_id" INTEGER,
     "applier_id" INTEGER,
     "appplying_date_utc" TEXT NOT NULL,
+    "event_id" INTEGER NOT NULL,
     "id" SERIAL NOT NULL,
 
     CONSTRAINT "eventJoinRequests_pkey" PRIMARY KEY ("id")

@@ -47,6 +47,7 @@ model eventJoinRequests {
   eventOrganizer      Account?  @relation(fields: [event_organizer_id], references: [id])
   applier             Team?     @relation(fields: [applier_id], references: [id])
   appplying_date_utc String
+  event_id Int
 
   id Int @id @default(autoincrement())
 }
