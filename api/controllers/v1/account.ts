@@ -7,6 +7,7 @@ import multer from "multer";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 import fs from "fs"
 import auth from "./middlware/auth";
+import { getCurrentTimezoneDateInUtc } from "../../../timing/date";
 
 // NEEDS REFACTORING
 // const relativePublicPath = path.join(__dirname, '../../../public')
@@ -90,13 +91,70 @@ router.put('/update/:id', auth, driver.single('avatar'),
     })
 
 
-router.get("/:id", auth, async (req, res) => {
+router.get("/get-my-info/:timezone", auth, async (req, res) => {
+
+    console.log("Getting User", req, "Info")
+    //@ts-ignore
+    let accountId = req.session.user.id
 
     try {
         prisma.$connect()
-        const result = await prisma.account.findFirst({where: {id: Number(req.params.id)}})
-        res.json(result)
+        const result = await prisma.account.findFirst({where: {id: +accountId}, select: {
+            about: true,
+            achievments: {
+                select : {
+                    achivment: true
+                }
+            },
+            avatar: true,
+            checkpoints: true,
+            comments: true,
+            email: true,
+            hash: false,
+            join_date_utc: true,
+            name: true,
+            organizing: {
+                select: {
+                    event: true
+                }
+            },
+            posts: true,
+            professions: true,
+            recivedTeamJoinRequests: true,
+            reciverEventJoinRequests: true,
+            team_id: true,
+            team: true,
+            teamJoinRequests: true,
+            xp_points: true
+        }})
+
+        let organizingNow = result?.organizing.filter((o) => {
+            return +o.event.start_date_utc < getCurrentTimezoneDateInUtc(req.params.timezone.replace('-', '/')) && 
+            +o.event.end_date_utc > getCurrentTimezoneDateInUtc(req.params.timezone.replace('-', '/'))
+        });
+
+        let scheduling = result?.organizing.filter((o) => {
+            return +o.event.start_date_utc > getCurrentTimezoneDateInUtc(req.params.timezone.replace('-', '/'))
+        });
+
+        let enrolledIn =  await prisma.event.findMany({where: {
+            participants: {
+                every: {
+                    //@ts-ignore
+                    team_id: +result.team_id
+                }
+            },
+            start_date_utc: {
+                lte: `${getCurrentTimezoneDateInUtc(req.params.timezone.replace('-', '/'))}`
+            },
+            end_date_utc: {
+                gte: `${getCurrentTimezoneDateInUtc(req.params.timezone.replace('-', '/'))}`
+            }
+        }})
+        res.json({ ...result, organizingNow, scheduling, enrolledIn  })
+
         await prisma.$disconnect()
+
     } catch(exp) {
         await prisma.$disconnect()
         res.send(exp).status(500)
@@ -126,6 +184,9 @@ router.post('/create', driver.single('avatar'), async (req, res) => {
 
         //@ts-ignore
         req.session["user"] = {email: account.email, id: account.id}
+        res.cookie('account', account, {
+            maxAge: 90000000
+        })
         res.send(account).status(200)
 
     } catch(exp: any) {
@@ -139,7 +200,7 @@ router.post('/create', driver.single('avatar'), async (req, res) => {
 })
 
 
-router.post('/login',driver.none(), async (req, res) => {
+router.post('/login/:timezone',driver.none(), async (req, res) => {
     console.log(req.body)
     prisma.$connect();
     try {
@@ -152,16 +213,64 @@ router.post('/login',driver.none(), async (req, res) => {
         else {
             if(isPasswordValid(req.body.password, account.hash)) {
                 //@ts-ignore
-                BigInt.prototype['toJSON'] = function () { 
-                    return this.toString()
-                }
-                //@ts-ignore
-                console.log(BigInt['toJSON'])
-                //@ts-ignore
                 req.session["user"] = {email: account.email, id: account.id}
                 //@ts-ignore
-                console.log(account)
-                res.json(account)
+                res.cookie('session', req.session['user'])
+                
+                const result = await prisma.account.findFirst({where: {id: +account.id}, select: {
+                    about: true,
+                    achievments: {
+                        select : {
+                            achivment: true
+                        }
+                    },
+                    avatar: true,
+                    checkpoints: true,
+                    comments: true,
+                    email: true,
+                    hash: false,
+                    join_date_utc: true,
+                    name: true,
+                    organizing: {
+                        select: {
+                            event: true
+                        }
+                    },
+                    posts: true,
+                    professions: true,
+                    recivedTeamJoinRequests: true,
+                    reciverEventJoinRequests: true,
+                    team_id: true,
+                    team: true,
+                    teamJoinRequests: true,
+                    xp_points: true
+                }})
+
+                let organizingNow = result?.organizing.filter((o) => {
+                    return +o.event.start_date_utc < getCurrentTimezoneDateInUtc(req.params.timezone.replace('-', '/')) && 
+                    +o.event.end_date_utc > getCurrentTimezoneDateInUtc(req.params.timezone.replace('-', '/'))
+                });
+
+                let scheduling = result?.organizing.filter((o) => {
+                    return +o.event.start_date_utc > getCurrentTimezoneDateInUtc(req.params.timezone.replace('-', '/'))
+                });
+
+                let enrolledIn =  await prisma.event.findMany({ where: {
+                    participants: {
+                        every: {
+                            //@ts-ignore
+                            team_id: +result.team_id
+                        }
+                    },
+                    start_date_utc: {
+                        lte: `${getCurrentTimezoneDateInUtc(req.params.timezone.replace('-', '/'))}`
+                    },
+                    end_date_utc: {
+                        gte: `${getCurrentTimezoneDateInUtc(req.params.timezone.replace('-', '/'))}`
+                    }
+                }})
+
+                res.json({ ...result, organizingNow, scheduling, enrolledIn  })
 
             } else { throw new Error("password is wrong") }
         }

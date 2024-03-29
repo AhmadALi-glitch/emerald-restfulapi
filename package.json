@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "restful api for emerald platform",
   "main": "api/index.ts",
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  },
   "scripts": {
     "build": "npx tsc",
     "start": "node dist/index.js",
